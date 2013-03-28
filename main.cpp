@@ -5,18 +5,21 @@
 #include <GL/glut.h>
 #include <GL/glext.h>
 #include <GL/glu.h>
+#include <math.h>
 
 GLuint shader;
 GLuint vert, frag;
 GLuint VAO, VBO_pos, VBO_col;
 GLint pos_attrib, col_attrib;
+GLint trans_uniform;
 
 char * vert_source =
         "attribute vec3 in_pos;\
          attribute vec3 rgb_color;\
          varying vec4 out_col;\
+         uniform mat3 trans;\
          void main(void) {\
-         gl_Position = vec4(in_pos, 1.0);\
+         gl_Position = vec4( trans * in_pos, 1.0 );\
          out_col = vec4(rgb_color, 1.0);}";
 
 char * frag_source =
@@ -24,11 +27,32 @@ char * frag_source =
          void main(void) {\
          gl_FragColor = out_col; }";
 
+float mtr[9] = {  1, 0, 0,
+                  0, 1, 0,
+                  0, 0, 1};
+
+static void _Timer(int value)
+{
+    static float angle = 0;
+    angle += 0.1;
+
+    mtr[0] = cos( angle );
+    mtr[8] = cos( angle );
+    mtr[2] = -sin( angle );
+    mtr[6] = sin( angle );
+
+  /* send redisplay event */
+  glutPostRedisplay();
+
+  /* call this function again in 10 milliseconds */
+  glutTimerFunc(30, _Timer, 0);
+}
 
 void Display() {
     glClear(GL_COLOR_BUFFER_BIT);
 
     glUseProgram(shader);
+    glUniformMatrix3fv( trans_uniform, 1, 1, mtr );
 
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO_pos);
@@ -81,11 +105,13 @@ void initshader() {
     glAttachShader( shader, frag );
 
     glLinkProgram( shader );
+
+    trans_uniform = glGetUniformLocation( shader, "trans" );
 }
 
 void init_object() {
 
-    float array_pos[] = {0.1, 0.1,   0.5, 0.5,   0.8, -0.2};
+    float array_pos[] = {-0.5, -0.5,   0.5, -0.5,   0.0, 0.5};
     float array_col[] = {1, 0, 0,    0, 1, 0,    0, 0, 1};
 
     glGenVertexArrays(1, &VAO);
@@ -107,7 +133,7 @@ void init_object() {
 }
 
 void Initialize() {
-    glClearColor(0, 0, 0, 0.0);
+    glClearColor(0.8, 0.9, 0.8, 0.51);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     initshader();
@@ -124,6 +150,7 @@ int main(int argc, char ** argv) {
     glutCreateWindow("Our first GLUT application!");
     glutDisplayFunc(Display);
     Initialize();
+    glutTimerFunc(10, _Timer, 0);
     glutMainLoop();
 
     return 0;
